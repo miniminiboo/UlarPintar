@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ular Pintar - Petualangan Matematika</title>
+    <style>
+        body {
+            margin: 0; padding: 0; display: flex; justify-content: center; align-items: center;
+            height: 100vh; 
+            /* Mengganti gradient dengan gambar Bcground.png */
+            background-image: url('Bcground.png'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            font-family: 'Comic Sans MS', sans-serif; overflow: hidden;
+        }
+
+        canvas {
+            /* Mengubah background canvas menjadi transparan agar gambar body terlihat */
+            background-color: rgba(241, 248, 233, 0.4); 
+            border: 4px solid #43a047;
+            border-radius: 12px;
+            display: none;
+        }
+        #game-container {
+            position: relative; width: 800px; height: 600px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 10px solid #43a047; border-radius: 30px;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 15px; box-sizing: border-box;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+
+        /* --- BACKDROP BARU: MENGUNCI KLIK DI BELAKANG --- */
+        #quiz-backdrop {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4); 
+            z-index: 90; 
+            border-radius: 20px;
+        }
+
+        #ui-game { display: none; width: 100%; justify-content: space-around; align-items: center; margin-bottom: 10px; font-weight: bold; color: #2e7d32; }
+        
+        canvas {
+            background-color: #f1f8e9;
+            border: 4px solid #43a047;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .page-panel { display: none; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; text-align: center; }
+        #main-menu { display: flex; }
+
+        .btn {
+            background-color: #4caf50; color: white; border: none;
+            padding: 14px 35px; font-size: 20px; font-weight: bold;
+            border-radius: 50px; cursor: pointer; margin: 8px;
+            transition: all 0.2s; box-shadow: 0 5px 0 #2e7d32;
+        }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #2e7d32; }
+        .btn:hover { background-color: #388e3c; }
+
+        .btn-easy { background-color: #81c784; box-shadow: 0 5px 0 #558b2f; }
+        .btn-normal { background-color: #ffa726; box-shadow: 0 5px 0 #ef6c00; }
+        .btn-hard { background-color: #ef5350; box-shadow: 0 5px 0 #c62828; }
+
+        .btn-pause { background-color: #ff9800; padding: 8px 22px; font-size: 14px; box-shadow: 0 4px 0 #e68a00; }
+        .btn-back { background-color: #d32f2f; padding: 8px 22px; font-size: 14px; box-shadow: 0 4px 0 #b71c1c; }
+        
+        #quiz-overlay {
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 30px; border: 6px solid #ffb300; border-radius: 25px; 
+            z-index: 100; text-align: center; width: 380px; box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        #game-over-screen {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(26, 26, 26, 0.95); color: white; z-index: 200;
+            flex-direction: column; justify-content: center; align-items: center;
+            border-radius: 20px;
+        }
+
+        .stats-item { background: #e8f5e9; padding: 5px 15px; border-radius: 10px; border: 2px solid #81c784; }
+
+        /* --- STYLING KHUSUS MOBILE CONTROLS --- */
+        #mobile-controls {
+            display: none; /* Sembunyikan default */
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 8px;
+            margin-top: 15px;
+            z-index: 10;
+        }
+
+        .touch-btn {
+            width: 55px; height: 55px;
+            background-color: rgba(76, 175, 80, 0.9);
+            color: white; border: none; border-radius: 50%;
+            font-size: 22px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 0 #2e7d32;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .touch-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #2e7d32;
+            background-color: #388e3c;
+        }
+
+        #btn-up { grid-area: up; }
+        #btn-left { grid-area: left; }
+        #btn-right { grid-area: right; }
+        #btn-down { grid-area: down; }
+
+        @media (max-width: 900px) {
+            #game-container {
+                width: 98%; height: auto;
+                min-height: 90vh;
+            }
+            canvas {
+                width: 100% !important;
+                height: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Backdrop ditambahkan di sini -->
+        <div id="quiz-backdrop"></div>
+
+        <div id="ui-game">
+            <button class="btn btn-back" onclick="backToMenu()">⬅ Menu</button>
+            <div class="stats-item"> 📋<span id="score-val">0</span> score </div>
+            <div class="stats-item">❤️ <span id="lives-val">3</span></div>
+            <button id="pause-btn" class="btn btn-pause" onclick="togglePause()">⏸ Pause</button>
+        </div>
+
+        <canvas id="snakeGame" width="600" height="400"></canvas>
+
+        <!-- TOMBOL NAVIGASI HP -->
+        <div id="mobile-controls">
+            <button class="touch-btn" id="btn-up">▲</button>
+            <button class="touch-btn" id="btn-left">◀</button>
+            <button class="touch-btn" id="btn-right">▶</button>
+            <button class="touch-btn" id="btn-down">▼</button>
+        </div>
+
+        <div id="quiz-overlay">
+            <div style="font-size: 40px; margin-bottom: 5px;">🍎</div>
+            <h2 id="quiz-question" style="color: #5d4037; margin-bottom: 20px;">Tantangan Matematika</h2>
+            <div id="quiz-options" style="display: flex; flex-direction: column;"></div>
+        </div>
+
+        <div id="game-over-screen">
+            <h1 style="font-size: 60px; color: #ff5252; margin: 0;">GAME OVER</h1>
+            <p id="game-over-msg" style="font-size: 24px; margin: 10px 0;">Ularnya sudah lelah...</p>
+            <h2 style="margin-bottom: 40px;">Skor yang kamu dapat: <span id="final-score" style="color: #ccff90;">0</h2>
+            <button class="btn" onclick="backToMenu()" style="padding: 18px 60px;">KEMBALI KE MENU</button>
+        </div>
+
+        <div id="main-menu" class="page-panel">
+            <h1 style="font-size: 60px; color: #2e7d32; font-family: Arial;">🐍ULAR PINTAR🍎</h1>
+            <button class="btn" onclick="showPage('difficulty-screen')">MULAI BERMAIN</button>
+        </div>
+
+        <div id="difficulty-screen" class="page-panel">
+            <h2>🏆 Pilih Tingkat Kesulitan</h2>
+            <p>Setiap level memiliki kecepatan dan soal yang berbeda!</p>
+            <div class="difficulty-options">
+                <button class="btn btn-easy" onclick="setDifficulty('easy')">EASY 🐢</button>
+                <button class="btn btn-normal" onclick="setDifficulty('normal')">NORMAL 🐍</button>
+                <button class="btn btn-hard" onclick="setDifficulty('hard')">HARD ⚡</button>
+            </div>
+            <button class="btn btn-back" onclick="showPage('main-menu')" style="margin-top: 20px;">Kembali</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("snakeGame");
+        const ctx = canvas.getContext("2d");
+        const box = 25; 
+        
+        let snake, food, direction, gameLoop, score, lives, isPaused;
+        let gameSpeed = 150;
+        let currentQuestions = [];
+        let usedQuestions = [];
+
+        const difficultySettings = {
+            easy: {
+                speed: 300,
+                questions: [
+                    {q: "1 km = ... m", a: "1.000 m", opt: ["100 m", "1.000 m", "10 m"]},
+                    {q: "1 m = ... cm", a: "100 cm", opt: ["10 cm", "100 cm", "1.000 cm"]},
+                    {q: "500 cm = ... m", a: "5 m", opt: ["50 m", "5 m", "0,5 m"]},
+                    {q: "7 kg = ... g", a: "7.000 g", opt: ["700 g", "7.000 g", "70.000 g"]},
+                    {q: "7 m = ... cm", a: "700 cm", opt: ["70 cm", "7.000 cm", "700 cm"]},
+                    {q: "8.000 m = ... km", a: "8 km", opt: ["80 km", "8 km", "0,8 cm"]},
+                    {q: "200 g = ... hg", a: "2 hg", opt: ["2 hg", "20 hg", "o,2 hg"]},
+                    {q: "200 mg = ... g", a: "0,2 g", opt: ["20 g", "2 g", "0,2 g"]},
+                    {q: "10 m = ... cm", a: "1.000 cm", opt: ["100 cm", "1.000 cm", "10.000 cm"]},
+                    {q: "7000 g = ... dag", a: "700 dag", opt: ["700 dag", "70 dag", "7 dag"]},
+                    {q: "90 cg = ... g", a: "0,9 g", opt: ["90 g", "9 g", "0,9 g"]},
+                    {q: "450 hg = ... ons", a: "450 ons", opt: ["450 ons", "45 ons", "4,5 ons"]},
+                    {q: "750 m = ... dam", a: "75 dam", opt: ["750 dam", "75 dam", "7,5 dam"]},
+                    {q: "40 dm = ... dam", a: "0,4 dam", opt: ["4.000 dam", "0,4 dam", "4 dam"]},
+                    {q: "630 g = ... ons", a: "6,3 ons", opt: ["06,3 ons", "6,3 ons", "63 ons"]},
+                    {q: "12 dm = ... mm", a: "1.200 mm", opt: ["120 mm", "12.000 mm", "1.200 mm"]},
+                    {q: "6.000 g = ... kg", a: "6 kg", opt: ["60 kg", "6 kg", "0,6 kg"]},
+                    {q: "800 cm = ... dm", a: "80 dm", opt: ["80 dm", "8 dm", "0,8 dm"]},
+                    {q: "4.000 mg = ... g", a: "4 g", opt: ["400 g", "4000 g", "4 g"]},
+                    {q: "Alat untuk mengukur panjang pensil adalah ...", a: "Penggaris", opt: ["Meteran", "Penggaris", "Meteran rol"]},
+                    {q: "Alat untuk mengukur panjang bangunan adalah ...", a: "Meteran rol", opt: ["Meteran", "Penggaris", "Meteran rol"]},
+                    {q: "100 cm = ... m", a: "1 m", opt: ["1 m", "10 m", "100 m"]}
+                ]
+            },
+            normal: {
+                speed: 295,
+                questions: [
+                    {q: "5 m + 3 m = ... cm", a: "800 cm", opt: ["80 cm", "800 cm", "8.000 cm"]},
+                    {q: "2.000 mg + 50 g = ... g", a: "52 g", opt: ["52 g", "250 g", "70 g"]},
+                    {q: "2 ons - 20 g = ... g", a: "180 g", opt: ["180 g", "0 g", "1.800 g"]},
+                    {q: "500 km + 200 hm= ... hm", a: "250 hm", opt: ["250 hm", "5.200 hm", "700 hm"]},
+                    {q: "3 m + 200 cm= ... cm", a: "500 cm", opt: ["500 cm", "203 cm", "3.200 cm"]},
+                    {q: "5 kg - 2 kg = ... ons", a: "30 ons", opt: ["70 ons", "30 ons", "3 ons"]},
+                    {q: "400 cm + 1 m = ... m", a: "5 m", opt: ["401 m", "5 m", "3 m"]},
+                    {q: "2 kg + 500 g = ... g", a: "2.500 g", opt: ["502 g", "2.500 g", "700 g"]},
+                    {q: "6 m - 100 cm = ... m", a: "5 m", opt: ["5 m", "7 m", "500 m"]},
+                    {q: "1 kg + 10 ons = ... kg", a: "2 kg", opt: ["2 kg", "11 kg", "20 kg"]},
+                    {q: "700 cm + 4 m = ... cm", a: "1.100 cm", opt: ["740 cm", "1.100 cm", "4.700 cm"]},
+                    {q: "4 ons + 300 g = ... g", a: "700 g", opt: ["304 g", "700 g", "7.000 g"]},
+                    {q: "8 m + 1 m= ... mm", a: "9.000 mm", opt: ["9.000 mm", "900 mm", "90 mm"]},
+                    {q: "15 kg + 22 kg = ... kg", a: "37 kg", opt: ["35 kg", "36 kg", "37 kg"]},
+                    {q: "3.500 cm + 43 m = ... m", a: "78 m", opt: ["393 m", "78 m", "46,5 m"]},
+                    {q: "6 ons + 0,4 kg = ... kg", a: "1 kg", opt: ["46 kg", "1 kg", "6,4 kg"]},
+                    {q: "4 m + 5 dm = ... cm", a: "450 cm", opt: ["450 cm", "45 cm", "900 cm"]},
+                    {q: "5.000 g + 5 ons = ... kg", a: "10 kg", opt: ["5,5 kg", "10 kg", "55 kg"]}
+                ]
+            },
+            hard: {
+                speed: 290,
+                questions: [
+                    {q: "Riki mempunyai 2 pita dengan panjang 15,5 cm and 12,5 cm. Berapa panjang kedua pita tersebut ... cm", a: "28 cm", opt: ["27 cm", "28 cm", "29 cm"]},
+                    {q: "Papan tulis memiliki panjang 150 cm. Jika diukur menjadi meter, berapa panjang papan tulis tersebut ...", a: "1,5 m", opt: ["15 m", "1,5 m", "0,15 m"]},
+                    {q: "Hoshi memiliki 2 buku dengan berat 150 g and 300 g. Berapa berat buku Hoshi dalam satuan kilogram ...", a: "0,45 kg", opt: ["0,45 kg", "4,5 kg", "45 kg"]},
+                    {q: "Hendery memiliki sebuah buku tulis dengan panjang 25 cm and lebar 18 cm. Berapakah selisih antara panjang and lebar buku tersebut ...", a: "7 cm", opt: ["7 cm", "43 cm", "8 cm"]},
+                    {q: "Deka memiliki sebidang tanah kecil di belakang rumah dengan panjang 5 meter and lebar 3 meter. Jika Deka ingin mengubah satuannya ke sentimeter (cm), berapakah lebar tanah tersebut dalam cm...", a: "300 cm", opt: ["500 cm", "300 cm", "800 cm"]},
+                    {q: "Carmen membeli kain sepanjang 3 meter. Kain tersebut digunakan untuk membuat taplak meja sepanjang 120 cm. Berapa sisa kain Carmen dalam satuan cm ...", a: "180 cm", opt: ["80 cm", "180 cm", "1.800 cm"]},
+                    {q: "Sebuah ubin berbentuk persegi dengan panjang sisi 30 cm. Jika ada dua ubin yang diletakkan berjajar ke samping, berapakah panjang total kedua ubin tersebut ...", a: "60 cm", opt: ["60 cm", "90 cm", "120 cm"]},
+                    {q: "Panjang taman sekolah adalah 30 meter and lebarnya adalah setengah dari panjangnya. Berapakah lebar lapangan sekolah tersebut ...", a: "15 m", opt: ["10 m", "15 m", "60 m"]},
+                    {q: "Zayyan mengukur panjang papan tulis menggunakan penggaris 30 cm. Ternyata panjang papan tulis tersebut adalah tepat 6 kali panjang penggarisnya. Berapa cm panjang papan tulis itu...", a: "180 cm", opt: ["120 cm", "150 cm", "180 cm"]},
+                    {q: "Jarak rumah Ochi ke rumah Uji adalah 1,5 km. Ochi sudah berjalan sejauh 750 meter. Berapa meter sisa jarak yang harus ditempuh untuk sampai ke rumah Uji ...", a: "750 m", opt: ["650 m", "700 m", "750 m"]},
+                    {q: "Martin menyambungkan dua buah tali. Tali pertama panjangnya 1,5 meter and tali kedua panjangnya 185 cm. Berapa cm total panjang sambungan tali Martin ...", a: "335 cm", opt: ["325 cm", "335 cm", "345 cm"]},
+                    {q: "Panjang sebatang bambu adalah 5 meter. Bambu tersebut dipotong menjadi 5 bagian yang sama panjang. Berapakah panjang setiap potongan bambu dalam satuan cm...", a: "100 cm", opt: ["100 cm", "1 cm", "50 cm"]},
+                    {q: "Tinggi sebuah meja adalah 1 meter 20 cm. Jika di atas meja diletakkan kotak setinggi 45 cm, berapakah tinggi totalnya dalam satuan cm ...", a: "165 cm", opt: ["165 cm", "160 cm", "155 cm"]},
+                    {q: "Selembar kain panjangnya 5 meter. Kain tersebut dipotong 220 cm untuk baju and 2 meter untuk celana. Berapa cm sisa kain tersebut ...", a: "80 cm", opt: ["50 cm", "80 cm", "100 cm"]},
+                    {q: "Tinggi badan Kevin adalah 165 cm. Tinggi badan Eric 20 cm lebih tinggi dari Kevin. Berapakah tinggi badan Eric dalam satuan meter ...", a: "1,85 m", opt: ["1,75 m", "1,85 m", "1,95 m"]},
+                    {q: "Dita memiliki pita sepanjang 5 meter. Dita memberikan 125 cm pita ke Danielle and 1,5 meter ke Ian. Berapa sisa pita Dita dalam satuan cm...", a: "225 cm", opt: ["325 cm", "225 cm", "125 cm"]},
+                    {q: "Riku mempunyai bambu sepanjang 4,5 meter. Bambu tersebut digunakan untuk membuat pagar sepanjang 325 cm. Sisa bambu Riko adalah ... cm", a: "125 cm", opt: ["175 cm", "150 cm", "125 cm"]}
+                ]
+            }
+        };
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page-panel').forEach(p => p.style.display = 'none');
+            document.getElementById('game-over-screen').style.display = 'none';
+            if(pageId !== 'none') document.getElementById(pageId).style.display = 'flex';
+        }
+
+        function setDifficulty(level) {
+            gameSpeed = difficultySettings[level].speed;
+            currentQuestions = difficultySettings[level].questions;
+            startGame();
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById("pause-btn").innerText = isPaused ? "▶ Resume" : "⏸ Pause";
+        }
+
+        function backToMenu() {
+            clearInterval(gameLoop);
+            showPage('main-menu');
+            canvas.style.display = 'none';
+            document.getElementById('ui-game').style.display = 'none';
+            document.getElementById("quiz-backdrop").style.display = "none";
+            document.getElementById("quiz-overlay").style.display = "none";
+            document.getElementById("mobile-controls").style.display = "none";
+        }
+
+        function startGame() {
+            showPage('none');
+            document.getElementById('ui-game').style.display = 'flex';
+            canvas.style.display = 'block';
+            
+            // Tampilkan kontrol HP jika di layar kecil
+            if (window.innerWidth <= 900) {
+                document.getElementById("mobile-controls").style.display = "grid";
+            }
+
+            score = 0;
+            lives = 3;
+            usedQuestions = [];
+            document.getElementById("score-val").innerText = score;
+            document.getElementById("lives-val").innerText = lives;
+            
+            snake = [{x: 10 * box, y: 8 * box}, {x: 9 * box, y: 8 * box}];
+            spawnFood();
+            direction = "RIGHT";
+            isPaused = false;
+            
+            if(gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(draw, gameSpeed);
+        }
+
+        function spawnFood() {
+            food = {
+                x: Math.floor(Math.random() * (canvas.width/box)) * box,
+                y: Math.floor(Math.random() * (canvas.height/box)) * box
+            };
+        }
+
+        /* --- LOGIKA GERAKAN (KEYBOARD & TOUCH) --- */
+        const moveSnake = (dir) => {
+            if (isPaused) return; 
+            if(dir == "LEFT" && direction != "RIGHT") direction = "LEFT";
+            else if(dir == "UP" && direction != "DOWN") direction = "UP";
+            else if(dir == "RIGHT" && direction != "LEFT") direction = "RIGHT";
+            else if(dir == "DOWN" && direction != "UP") direction = "DOWN";
+        };
+
+        document.addEventListener("keydown", (e) => {
+            if(e.keyCode == 37) moveSnake("LEFT");
+            else if(e.keyCode == 38) moveSnake("UP");
+            else if(e.keyCode == 39) moveSnake("RIGHT");
+            else if(e.keyCode == 40) moveSnake("DOWN");
+        });
+
+        // Event listener untuk tombol layar (HP)
+        document.getElementById("btn-up").addEventListener("touchstart", (e) => { e.preventDefault(); moveSnake("UP"); });
+        document.getElementById("btn-down").addEventListener("touchstart", (e) => { e.preventDefault(); moveSnake("DOWN"); });
+        document.getElementById("btn-left").addEventListener("touchstart", (e) => { e.preventDefault(); moveSnake("LEFT"); });
+        document.getElementById("btn-right").addEventListener("touchstart", (e) => { e.preventDefault(); moveSnake("RIGHT"); });
+        // Click support untuk testing
+        document.getElementById("btn-up").addEventListener("click", () => moveSnake("UP"));
+        document.getElementById("btn-down").addEventListener("click", () => moveSnake("DOWN"));
+        document.getElementById("btn-left").addEventListener("click", () => moveSnake("LEFT"));
+        document.getElementById("btn-right").addEventListener("click", () => moveSnake("RIGHT"));
+
+
+        function draw() {
+            if(isPaused) return;
+            ctx.fillStyle = "#f1f8e9"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = "#c8e6c9"; 
+            ctx.lineWidth = 2; 
+            for(let i=0; i<canvas.width; i+=box) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=box) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+
+            // Apel
+            let gradApple = ctx.createRadialGradient(food.x+8, food.y+8, 2, food.x+box/2, food.y+box/2, box/2);
+            gradApple.addColorStop(0, "#ff5252"); gradApple.addColorStop(1, "#b71c1c");
+            ctx.fillStyle = gradApple;
+            ctx.beginPath(); ctx.arc(food.x + box/2, food.y + box/2 + 2, box/2 - 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#5d4037"; ctx.fillRect(food.x + box/2 - 1, food.y + 2, 2, 6);
+
+            // Ular
+            snake.forEach((p, i) => {
+                let isHead = (i === 0);
+                let gradSnake = ctx.createRadialGradient(p.x+box/2, p.y+box/2, 2, p.x+box/2, p.y+box/2, box/2);
+                gradSnake.addColorStop(0, isHead ? "#66bb6a" : "#a5d6a7");
+                gradSnake.addColorStop(1, isHead ? "#1b5e20" : "#2e7d32");
+                ctx.fillStyle = gradSnake;
+                ctx.beginPath(); ctx.arc(p.x + box/2, p.y + box/2, box/2 - 1, 0, Math.PI * 2); ctx.fill();
+                
+                if(isHead) {
+                    ctx.fillStyle = "white";
+                    ctx.beginPath(); ctx.arc(p.x+box/2-5, p.y+box/2-4, 4, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(p.x+box/2+5, p.y+box/2-4, 4, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = "black";
+                    ctx.beginPath(); ctx.arc(p.x+box/2-5, p.y+box/2-4, 2, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(p.x+box/2+5, p.y+box/2-4, 2, 0, Math.PI*2); ctx.fill();
+                }
+            });
+
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+            if(direction == "LEFT") snakeX -= box;
+            if(direction == "UP") snakeY -= box;
+            if(direction == "RIGHT") snakeX += box;
+            if(direction == "DOWN") snakeY += box;
+
+            if(snakeX == food.x && snakeY == food.y) {
+                isPaused = true;
+                generateQuiz();
+            } else {
+                snake.pop();
+            }
+
+            let newHead = { x: snakeX, y: snakeY };
+            if(snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height || collision(newHead, snake)) {
+                gameOver("Nabrak!");
+            }
+            snake.unshift(newHead);
+        }
+
+        function collision(head, array) {
+            for(let i=0; i<array.length; i++) if(head.x == array[i].x && head.y == array[i].y) return true;
+            return false;
+        }
+
+        function gameOver(reason) {
+            clearInterval(gameLoop);
+            document.getElementById("final-score").innerText = score;
+            document.getElementById("game-over-screen").style.display = "flex";
+            document.getElementById("quiz-backdrop").style.display = "none";
+            document.getElementById("mobile-controls").style.display = "none";
+            document.getElementById("game-over-msg").innerText = reason === "Nyawa Habis" ? "Kamu salah menjawab 3 kali!" : "Ularnya menabrak sesuatu!";
+        }
+
+        function generateQuiz() {
+            const overlay = document.getElementById("quiz-overlay");
+            const backdrop = document.getElementById("quiz-backdrop");
+            const qEl = document.getElementById("quiz-question");
+            const oEl = document.getElementById("quiz-options");
+            
+            backdrop.style.display = "block";
+            
+            let available = currentQuestions.filter(q => !usedQuestions.includes(q.q));
+            if (available.length === 0) { usedQuestions = []; available = currentQuestions; }
+
+            const randomQ = available[Math.floor(Math.random() * available.length)];
+            usedQuestions.push(randomQ.q);
+
+            qEl.innerText = randomQ.q;
+            oEl.innerHTML = "";
+            
+            randomQ.opt.sort(() => Math.random() - 0.5).forEach(opt => {
+                const btn = document.createElement("button");
+                btn.className = "btn";
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    if(opt == randomQ.a) {
+                        score += 10;
+                        document.getElementById("score-val").innerText = score;
+                        spawnFood();
+                    } else {
+                        lives--;
+                        document.getElementById("lives-val").innerText = lives;
+                        if(lives <= 0) {
+                            overlay.style.display = "none";
+                            backdrop.style.display = "none";
+                            gameOver("Nyawa Habis");
+                            return;
+                        }
+                        alert("Jawaban salah! Nyawa berkurang 1.");
+                        snake.pop(); 
+                        spawnFood();
+                    }
+                    overlay.style.display = "none";
+                    backdrop.style.display = "none";
+                    isPaused = false;
+                };
+                oEl.appendChild(btn);
+            });
+            overlay.style.display = "block";
+        }
+    </script>
+</body>
+</html>
